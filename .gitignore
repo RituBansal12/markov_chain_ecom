@@ -148,7 +148,6 @@ venv.bak/
 # Data folders
 data/
 data_clean/
-reports/
 
 # Spyder project settings
 .spyderproject

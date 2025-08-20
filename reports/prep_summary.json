@@ -1,0 +1,32 @@
+{
+  "columns_present": [
+    "visitorid",
+    "session_id",
+    "session_start_ts",
+    "session_end_ts",
+    "from_state",
+    "to_state",
+    "from_ts",
+    "to_ts",
+    "delta_seconds",
+    "from_categoryid",
+    "to_categoryid",
+    "from_itemid",
+    "to_itemid",
+    "is_repeat",
+    "dominant_session_categoryid",
+    "event_count_in_session",
+    "has_purchase_in_session"
+  ],
+  "has_purchase_sessions_pct": 3.595276660222582,
+  "mapping_rows": 417053,
+  "qc": {
+    "columns_ok": true,
+    "first_transition_starts_ok": true,
+    "non_negative_deltas_ok": true,
+    "purchase_session_terminal_ok": true
+  },
+  "transitions_rows": 834626,
+  "unique_sessions": 382780,
+  "unique_visitors": 315640
+}
