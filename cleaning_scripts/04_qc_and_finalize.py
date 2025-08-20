@@ -1,3 +1,18 @@
+"""
+QC checks and summary report for prepared transitions and item-category mapping.
+
+Inputs:
+- data_clean/journeys_markov_ready.csv
+- data_clean/item_to_category.csv
+
+Outputs:
+- reports/prep_summary.json
+
+Usage:
+  python -m cleaning_scripts.04_qc_and_finalize
+
+Notes: Ensures output directories exist via ensure_dirs(); writes JSON report to reports/.
+"""
 import argparse
 import json
 import pandas as pd
@@ -6,14 +21,13 @@ from cleaning_scripts.common import get_paths, ensure_dirs, configure_logging, w
 
 def main():
     parser = argparse.ArgumentParser(description="QC checks and summary report")
-    parser.add_argument("--sample", action="store_true", help="Use sample outputs")
     args = parser.parse_args()
 
     log = configure_logging("qc_finalize")
     ensure_dirs()
 
     _, _, clean, reports = get_paths()
-    trans_csv = clean / ("journeys_markov_ready_sample.csv" if args.sample else "journeys_markov_ready.csv")
+    trans_csv = clean / "journeys_markov_ready.csv"
     map_csv = clean / "item_to_category.csv"
 
     trans = pd.read_csv(trans_csv, dtype={"visitorid": "string"})
@@ -56,7 +70,7 @@ def main():
         },
     }
 
-    write_json(reports / ("prep_summary_sample.json" if args.sample else "prep_summary.json"), summary)
+    write_json(reports / "prep_summary.json", summary)
     log.info(f"Wrote summary report with keys: {list(summary.keys())}")
 
 

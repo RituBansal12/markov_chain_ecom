@@ -150,9 +150,6 @@ data/
 data_clean/
 reports/
 
-# Code Agent Markdowns
-plan.md
-
 # Spyder project settings
 .spyderproject
 .spyproject

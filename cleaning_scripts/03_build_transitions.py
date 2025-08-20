@@ -1,3 +1,25 @@
+"""
+Build sessionized customer-journey transitions with START/DROP and segment labels.
+
+Inputs:
+- data_clean/events_enriched.parquet (from 02_enrich_events)
+
+Outputs:
+- data_clean/journeys_markov_ready.csv
+
+CLI:
+- --session-gap-minutes: inactivity gap in minutes to split sessions (default: 30)
+
+Usage:
+  python -m cleaning_scripts.03_build_transitions \
+    --session-gap-minutes 30
+
+Notes:
+- Sessionizes by inactivity gap, collapses consecutive duplicate states.
+- Appends START at session begin and DROP at end if no PURCHASE occurs.
+- Adds segment features: is_repeat, dominant_session_categoryid, event_count, has_purchase_in_session.
+- Ensures output directories exist if missing.
+"""
 import argparse
 from pathlib import Path
 import pandas as pd
@@ -154,21 +176,21 @@ def add_segments(transitions: pd.DataFrame) -> pd.DataFrame:
 
 def main():
     parser = argparse.ArgumentParser(description="Build session transitions and segments from enriched events")
-    parser.add_argument("--sample", action="store_true", help="Use sample enriched file")
+    parser.add_argument("--session-gap-minutes", type=int, default=30, help="Inactivity gap to start a new session")
     args = parser.parse_args()
 
     log = configure_logging("build_transitions")
     ensure_dirs()
 
     _, _, clean, _ = get_paths()
-    enriched = clean / ("events_enriched_sample.parquet" if args.sample else "events_enriched.parquet")
-    out_csv = clean / ("journeys_markov_ready_sample.csv" if args.sample else "journeys_markov_ready.csv")
+    enriched = clean / "events_enriched.parquet"
+    out_csv = clean / "journeys_markov_ready.csv"
 
     log.info(f"Reading enriched events from {enriched}")
     ev = pd.read_parquet(enriched)
 
     # Build sessions
-    ev = build_sessions(ev, log)
+    ev = build_sessions(ev, log, gap_minutes=args.session_gap_minutes)
 
     # State assignment and collapse repeats
     ev["state"] = ev["event_norm"]

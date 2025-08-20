@@ -1,12 +1,33 @@
+"""
+Build a stable item->category mapping by streaming item_properties files.
+
+Inputs:
+- data/item_properties_part1.csv
+- data/item_properties_part2.csv
+
+Outputs:
+- data_clean/item_to_category.csv
+
+CLI:
+- --chunk-rows: rows per chunk when streaming item_properties
+
+Usage:
+  python -m cleaning_scripts.01_build_item_category \
+    --chunk-rows 1000000
+
+Notes: Creates output directories if missing via ensure_dirs(); also ensures parent
+directory for the output before saving.
+"""
 import argparse
 import pandas as pd
 from pathlib import Path
+from typing import Optional
 from cleaning_scripts.common import get_paths, ensure_dirs, DEFAULT_CHUNK_ROWS, configure_logging
 
 CATEGORY_PROPERTY_KEY = "categoryid"
 
 
-def latest_category_per_item(properties_paths, chunk_rows: int, log, max_items: int | None = None):
+def latest_category_per_item(properties_paths, chunk_rows: int, log, max_items: Optional[int] = None):
     """Stream item_properties files, keep latest category per itemid by timestamp.
     If max_items is set, stop early once that many unique items have been collected.
     """
@@ -66,8 +87,6 @@ def latest_category_per_item(properties_paths, chunk_rows: int, log, max_items: 
 def main():
     parser = argparse.ArgumentParser(description="Build stable item->category mapping (latest by timestamp)")
     parser.add_argument("--chunk-rows", type=int, default=DEFAULT_CHUNK_ROWS, help="Rows per chunk when streaming item_properties")
-    parser.add_argument("--sample", action="store_true", help="Run in sample mode for quick validation")
-    parser.add_argument("--sample-items", type=int, default=100_000, help="Limit number of items in sample mode")
     args = parser.parse_args()
 
     log = configure_logging("item_category")
@@ -78,13 +97,7 @@ def main():
     part2 = data / "item_properties_part2.csv"
     out_path = clean / "item_to_category.csv"
 
-    max_items = args.sample_items if args.sample else None
-    df = latest_category_per_item([part1, part2], args.chunk_rows, log, max_items=max_items)
-
-    if args.sample:
-        # Already early-stopped; just sort for stability
-        df = df.sort_values("itemid").reset_index(drop=True)
-        log.info(f"Sample mode: item_to_category limited to {len(df):,} rows")
+    df = latest_category_per_item([part1, part2], args.chunk_rows, log)
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(out_path, index=False)

@@ -1,1 +1,1 @@
-# Makes scripts a package for imports like `from scripts.common import ...`
+"""Cleaning package for data preparation scripts (see common.py for shared utilities)."""

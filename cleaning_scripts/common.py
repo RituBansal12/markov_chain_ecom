@@ -1,3 +1,9 @@
+"""
+ Common utilities for the pipeline: project paths, auto directory creation, logging, JSON helpers.
+
+ Outputs created automatically:
+ - data_clean/ and reports/ directories are created if missing via ensure_dirs().
+ """
 import os
 import json
 import logging
