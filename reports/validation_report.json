@@ -1,0 +1,9 @@
+{
+  "absorbing_states": [
+    "PURCHASE",
+    "DROP"
+  ],
+  "issues": [],
+  "matrix_path": "/Users/ritubansal/personal_projects/markov_chain_ecom/data_clean/transition_matrix.csv",
+  "valid": true
+}

@@ -1,0 +1,18 @@
+{
+  "states_order": [
+    "ADD_TO_CART",
+    "START",
+    "VIEW",
+    "DROP",
+    "PURCHASE"
+  ],
+  "transient": [
+    "ADD_TO_CART",
+    "START",
+    "VIEW"
+  ],
+  "absorbing": [
+    "DROP",
+    "PURCHASE"
+  ]
+}
