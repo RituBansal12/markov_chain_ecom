@@ -6,6 +6,8 @@
  - build_transition_matrix_from_counts
  - build_transition_matrix_from_transitions
  - analyze_absorbing_chain
+ - compute_avg_holding_times
+ - expected_time_to_absorption
 
  Notes: This module performs no filesystem I/O; callers are responsible for reading/writing.
  """
@@ -105,3 +107,91 @@ def analyze_absorbing_chain(transition_matrix: pd.DataFrame, absorbing_states: L
         "B": B_df,
         "t": t_ser,
     }
+
+
+def compute_avg_holding_times(transitions: pd.DataFrame, states: Optional[List[str]] = None,
+                              state_col: str = "from_state",
+                              delta_col: str = "delta_seconds") -> pd.Series:
+    """
+    Compute average holding (dwell) time per state from transitions.
+
+    Parameters
+    ----------
+    transitions : pd.DataFrame
+        Transitions with at least columns [state_col, delta_col].
+    states : Optional[List[str]]
+        Optional full list of states to include. Missing states are filled by the global mean.
+    state_col : str
+        Column name for the state whose dwell time to compute (typically 'from_state').
+    delta_col : str
+        Column name with time delta in seconds between transitions.
+
+    Returns
+    -------
+    pd.Series
+        Average holding time per state (seconds). Index are state names.
+    """
+    if delta_col not in transitions.columns or state_col not in transitions.columns:
+        raise ValueError(f"Required columns missing: {state_col}, {delta_col}")
+    grp = transitions.groupby(state_col)[delta_col].mean()
+    # Replace non-positive/NaN with global mean, fallback to 1.0
+    global_mean = grp.dropna()
+    global_mean = float(global_mean[global_mean > 0].mean()) if not global_mean.empty else 1.0
+    grp = grp.fillna(global_mean)
+    grp = grp.mask(grp <= 0, other=global_mean)
+    if states is not None:
+        # ensure all states present
+        missing = [s for s in states if s not in grp.index]
+        if missing:
+            add = pd.Series([global_mean] * len(missing), index=missing, dtype=float)
+            grp = pd.concat([grp.astype(float), add]).astype(float)
+        grp = grp.reindex(states)
+    return grp.astype(float)
+
+
+def expected_time_to_absorption(transition_matrix: pd.DataFrame,
+                                absorbing_states: List[str],
+                                holding_times: pd.Series) -> pd.Series:
+    """
+    Compute expected time to absorption for an absorbing Markov chain with state-dependent
+    holding times (semi-Markov approximation): t_time = N @ tau.
+
+    Parameters
+    ----------
+    transition_matrix : pd.DataFrame
+        Row-stochastic transition matrix indexed and columned by state.
+    absorbing_states : List[str]
+        Names of absorbing states.
+    holding_times : pd.Series
+        Average holding time per state (seconds). Should include at least all transient states.
+
+    Returns
+    -------
+    pd.Series
+        Expected time to absorption (seconds) for each transient state.
+    """
+    states = list(transition_matrix.index)
+    absorbing = [s for s in states if s in set(absorbing_states)]
+    transient = [s for s in states if s not in set(absorbing_states)]
+    if len(absorbing) == 0:
+        raise ValueError("No absorbing states found in matrix")
+    if not transient:
+        return pd.Series([], dtype=float, name="expected_time_seconds")
+
+    tm = transition_matrix.loc[transient + absorbing, transient + absorbing]
+    t = len(transient)
+    Q = tm.iloc[:t, :t].to_numpy(dtype=float)
+    I = np.eye(t)
+    try:
+        N = np.linalg.inv(I - Q)
+    except np.linalg.LinAlgError as e:
+        raise ValueError("(I - Q) is singular; fundamental matrix undefined") from e
+
+    # Align holding times to transient order; fallback to their mean if missing
+    ht = holding_times.reindex(transient)
+    if ht.isna().any():
+        fallback = float(holding_times.dropna().mean()) if not holding_times.dropna().empty else 1.0
+        ht = ht.fillna(fallback)
+    tau = ht.to_numpy(dtype=float).reshape((-1, 1))
+    t_time = (N @ tau).reshape(-1)
+    return pd.Series(t_time, index=transient, name="expected_time_seconds")

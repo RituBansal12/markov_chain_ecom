@@ -19,18 +19,18 @@ Modelling steps:
 5) modelling_scripts.01_build_transition_matrix
    - Input: data_clean/journeys_markov_ready.csv
    - Outputs: data_clean/transition_matrix.csv, data_clean/transition_counts.csv
-6) modelling_scripts.04_validation
+6) modelling_scripts.02_validation
    - Input: data_clean/transition_matrix.csv
    - Output: reports/validation_report.json
-7) modelling_scripts.02_markov_model
+7) modelling_scripts.03_markov_model
    - Input: data_clean/transition_matrix.csv
    - Outputs: reports/absorption_probabilities.csv, reports/expected_steps_to_absorption.csv, reports/markov_model_meta.json
-8) modelling_scripts.05_visualize_results
-   - Inputs: above outputs
-   - Outputs: visualizations/*.png
-9) modelling_scripts.03_segmentation
+8) modelling_scripts.04_segmentation
    - Input: data_clean/journeys_markov_ready.csv
    - Outputs: reports/segments/*/*
+9) modelling_scripts.05_item_analysis
+   - Input: data_clean/journeys_markov_ready.csv
+   - Outputs: reports/items/*.csv
 
 Usage:
   python -m run_pipeline \
@@ -38,7 +38,19 @@ Usage:
     --session-gap-minutes 30 \
     --absorbing PURCHASE,DROP \
     --segments-top-k 10 \
-    --segments-min-count 1000
+    --segments-min-count 1000 \
+    --items-top-k 10 \
+    --items-min-sessions 50
+
+
+CLI:
+- --chunk-rows: Rows per chunk for streaming CSVs
+- --session-gap-minutes: Session inactivity gap in minutes to split sessions
+- --absorbing: Comma-separated absorbing states
+- --segments-top-k: Top-K categories for segmentation
+- --segments-min-count: Minimum category count for segmentation
+- --items-top-k: Top-K items for item analysis
+- --items-min-sessions: Minimum distinct sessions an item must appear in to be analyzed
 
 Notes:
 - Each script is responsible for creating its output directories if missing.
@@ -66,6 +78,8 @@ def main():
     parser.add_argument("--absorbing", type=str, default="PURCHASE,DROP", help="Comma-separated absorbing states")
     parser.add_argument("--segments-top-k", type=int, default=None, help="Top-K categories for segmentation")
     parser.add_argument("--segments-min-count", type=int, default=None, help="Minimum category count for segmentation")
+    parser.add_argument("--items-top-k", type=int, default=None, help="Top-K items for item analysis")
+    parser.add_argument("--items-min-sessions", type=int, default=None, help="Minimum distinct sessions an item must appear in to be analyzed")
     args = parser.parse_args()
 
     log = configure_logging("pipeline")
@@ -102,26 +116,31 @@ def main():
 
     # 6) Validate
     args6 = ["--absorbing", args.absorbing]
-    run_module("modelling_scripts.04_validation", args6)
+    run_module("modelling_scripts.02_validation", args6)
     log.info("Step 6 complete: validation_report.json written")
 
     # 7) Markov model analysis
     args7 = ["--absorbing", args.absorbing]
-    run_module("modelling_scripts.02_markov_model", args7)
+    run_module("modelling_scripts.03_markov_model", args7)
     log.info("Step 7 complete: absorption probabilities and expected steps written")
 
-    # 8) Visualizations
-    run_module("modelling_scripts.05_visualize_results")
-    log.info("Step 8 complete: visualizations saved")
-
-    # 9) Segmentation analysis
+    # 8) Segmentation analysis
     args9 = ["--absorbing", args.absorbing]
     if args.segments_top_k is not None:
         args9 += ["--top-k-categories", str(args.segments_top_k)]
     if args.segments_min_count is not None:
         args9 += ["--min-category-count", str(args.segments_min_count)]
-    run_module("modelling_scripts.03_segmentation", args9)
-    log.info("Step 9 complete: segmentation outputs under reports/segments/")
+    run_module("modelling_scripts.04_segmentation", args9)
+    log.info("Step 8 complete: segmentation outputs under reports/segments/")
+
+    # 9) Item-level analysis
+    args10 = ["--absorbing", args.absorbing]
+    if args.items_top_k is not None:
+        args10 += ["--top-k", str(args.items_top_k)]
+    if args.items_min_sessions is not None:
+        args10 += ["--min-sessions", str(args.items_min_sessions)]
+    run_module("modelling_scripts.05_item_analysis", args10)
+    log.info("Step 9 complete: item analysis written to reports/items/")
 
 
 if __name__ == "__main__":
