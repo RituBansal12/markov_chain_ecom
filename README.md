@@ -34,7 +34,7 @@ This repository provides a concise, end-to-end pipeline to transform raw e-comme
 
 ## Articles / Publications
 
-* TBD
+* https://medium.com/@ritu.bansalrb00/turning-clickstreams-into-strategy-a-markov-chain-view-of-e-commerce-decisions-a653fa86af5d
 
 ---
 
